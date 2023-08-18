@@ -34,3 +34,4 @@ create table if not exists TabQueue ( -- all the free fields are the primary key
     Position int
 );
 
+insert into tab values (DEFAULT, 'root')
