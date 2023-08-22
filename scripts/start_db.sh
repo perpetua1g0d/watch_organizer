@@ -1,1 +1,1 @@
-psql -f ./scripts/sql/create_db.sql
+docker-compose -f docker-compose.yml up --build
