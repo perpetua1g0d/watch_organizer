@@ -1,12 +1,12 @@
-create database Worganizer;
+-- create database Worganizer;
 
 create table if not exists Poster (
     Id serial primary key,
-    KpLink varchar,
+    KpLink varchar not null,
     Rating real,
     Name varchar,
     Year int,
-    CreatedDate timestamp
+    CreatedAt timestamp default current_timestamp not null
 );
 
 create table if not exists PosterGenre (
@@ -16,7 +16,7 @@ create table if not exists PosterGenre (
 
 create table if not exists Tab (
     Id serial primary key,
-    Name varchar
+    Name varchar not null
 );
 
 create table if not exists TabChildren (
@@ -31,7 +31,7 @@ create table if not exists TabQueue ( -- all the free fields are the primary key
     PosterId int, -- serial primary key
     foreign key (TabId) references Tab(Id) on delete cascade,
     foreign key (PosterId) references Poster(Id) on delete cascade,
-    Position int
+    Position int not null
 );
 
 insert into tab values (DEFAULT, 'root')
