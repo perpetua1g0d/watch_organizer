@@ -3,12 +3,12 @@ package model
 import "time"
 
 type Poster struct {
-	Id          int // `json:"id" db:"id"`
-	KpLink      string
-	Rating      float32
-	Name        string
-	Year        int
-	CreatedDate time.Time
+	Id        int       `json:"id" db:"id"`
+	KpLink    string    `db:"kplink"`
+	Rating    float32   `db:"rating"`
+	Name      string    `db:"name"`
+	Year      int       `db:"year"`
+	CreatedAt time.Time `db:"createdat"`
 }
 
 type PosterGenre struct {
