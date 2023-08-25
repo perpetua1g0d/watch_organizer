@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/perpetua1g0d/watch_organizer/pkg/backend/service"
+	"github.com/perpetua1g0d/watch_organizer/internal/service"
 	// "github.com/swaggo/gin-swagger"
 )
 

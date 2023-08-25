@@ -8,8 +8,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"github.com/perpetua1g0d/watch_organizer/pkg/backend/model"
-	"github.com/perpetua1g0d/watch_organizer/pkg/backend/repository"
+	"github.com/perpetua1g0d/watch_organizer/internal/model"
+	"github.com/perpetua1g0d/watch_organizer/internal/repository"
 	"github.com/spf13/viper"
 )
 

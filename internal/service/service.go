@@ -1,6 +1,6 @@
 package service
 
-import "github.com/perpetua1g0d/watch_organizer/pkg/backend/repository"
+import "github.com/perpetua1g0d/watch_organizer/internal/repository"
 
 type Service struct {
 	
