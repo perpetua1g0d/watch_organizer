@@ -19,20 +19,10 @@ func initConfig() error {
 	return viper.ReadInConfig()
 }
 
-func getRootId(db *sqlx.DB) (rootId int, err error) {
-	var root model.Tab
-	if err = db.Get(&root, "select * from tab where name='root';"); err != nil {
-		rootId = root.Id
-		// fmt.Println(rootId)
-		// fmt.Printf("rootTab: %+v, extracted rootId=%d\n", root, rootId)
-	}
-	return
-}
-
 func createTabPath(db *sqlx.DB, tabs []string) (error, []int) {
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("Failed to begin tx: %s", err.Error()), nil
+		return fmt.Errorf("Failed to begin tabpath tx: %w", err), nil
 	}
 
 	ids := make([]int, len(tabs))
@@ -41,7 +31,7 @@ func createTabPath(db *sqlx.DB, tabs []string) (error, []int) {
 		var tabObj model.Tab
 		if err = db.Get(&tabObj, fmt.Sprintf("select * from tab where name='%s';", tabName)); err != sql.ErrNoRows && err != nil {
 			tx.Rollback()
-			return fmt.Errorf("Failed to check for %s tab in db: %s", tabName, err.Error()), nil
+			return fmt.Errorf("Failed to check for %s tab in db: %w", tabName, err), nil
 		}
 
 		var newTabId int
@@ -55,15 +45,13 @@ func createTabPath(db *sqlx.DB, tabs []string) (error, []int) {
 				Scan(&newTabId)
 			if err != nil {
 				tx.Rollback()
-				return fmt.Errorf("Failed to insert %s tab: %s", tabName, err.Error()), nil
+				return fmt.Errorf("Failed to insert %s tab: %w", tabName, err), nil
 			}
 
 			err = db.QueryRowx(fmt.Sprintf("insert into tabchildren (%d, %d);", lastTabId, newTabId)).Err()
-			fmt.Println("err inserting into tabchildren: ", err)
 			if err != nil {
 				tx.Rollback()
-				return fmt.Errorf("Failed to insert into tabchildren (%d, %d): %s", lastTabId, newTabId, err.Error()),
-					nil
+				return fmt.Errorf("Failed to insert into tabchildren (%d, %d): %w", lastTabId, newTabId, err), nil
 			}
 		} else {
 			newTabId = tabObj.Id
@@ -73,14 +61,16 @@ func createTabPath(db *sqlx.DB, tabs []string) (error, []int) {
 		ids[i] = newTabId
 	}
 
-	err = tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit tabpath tx: %w", err), ids
+	}
 	return err, ids
 }
 
 func createPosterInDB(db *sqlx.DB, poster model.Poster, pathIds []int) (err error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("Failed to begin tx: %s", err.Error())
+		return fmt.Errorf("Failed to begin poster tx: %w", err)
 	}
 
 	var posterId int
@@ -88,7 +78,7 @@ func createPosterInDB(db *sqlx.DB, poster model.Poster, pathIds []int) (err erro
 		poster.KpLink, poster.Rating, poster.Name, poster.Year)).Scan(&posterId)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("Failed to insert poster %+v: ", err.Error())
+		return fmt.Errorf("Failed to insert poster %+v: %w", poster, err)
 	}
 
 	for _, tabId := range pathIds {
@@ -96,85 +86,120 @@ func createPosterInDB(db *sqlx.DB, poster model.Poster, pathIds []int) (err erro
 		err = db.QueryRowx(fmt.Sprintf("select count(*) from tabqueue where tabid=%d;", tabId)).Scan(&postersCount)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("Failed to count new post for %d tab: %s", tabId, err.Error())
+			return fmt.Errorf("Failed to count new post for %d tab: %w", tabId, err)
 		}
 
 		err = db.QueryRowx(fmt.Sprintf("insert into tabqueue values (%d, %d, %d);", tabId, posterId, postersCount+1)).
 			Err()
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("Failed to insert position into tabqueue values(%d, %d, %d): %s",
-				tabId, posterId, postersCount+1, err.Error())
+			return fmt.Errorf("Failed to insert position into tabqueue values(%d, %d, %d): %w",
+				tabId, posterId, postersCount+1, err)
 		}
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit poster tx: %w", err)
+	}
+	return
 }
 
-func formPoster() (err error, poster model.Poster) {
-	fmt.Println("Enter KP link:")
-	_, err = fmt.Scan(&poster.KpLink)
+func createGenresInDB(db *sqlx.DB, posterId int, genres []string) (err error) {
+	tx, err := db.Begin()
 	if err != nil {
+		return fmt.Errorf("Failed to begin genres tx: %w", err)
+	}
+
+	for _, genre := range genres {
+		err = db.QueryRowx(fmt.Sprintf("insert into postergenre values (%d, %s);", posterId, genre)).Err()
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("Failed to insert genre %s: %w", genre, err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit genres tx: %w", err)
+	}
+	return
+}
+
+func readPoster() (err error, poster model.Poster, genres []string) {
+	fmt.Println("Enter KP link:")
+	if _, err = fmt.Scan(&poster.KpLink); err != nil {
 		return
 	}
 
 	fmt.Println("Enter rating (float):")
-	_, err = fmt.Scan(&poster.Rating)
-	if err != nil {
+	if _, err = fmt.Scan(&poster.Rating); err != nil {
 		return
 	}
 
 	fmt.Println("Enter name:")
-	_, err = fmt.Scan(&poster.Name)
-	if err != nil {
+	if _, err = fmt.Scan(&poster.Name); err != nil {
 		return
 	}
 
 	fmt.Println("Enter year:")
-	_, err = fmt.Scan(&poster.Year)
+	if _, err = fmt.Scan(&poster.Year); err != nil {
+		return
+	}
 
+	var genresStr string
+	fmt.Println("Enter genres (divide by comma & space like genre1, genre2, ...):")
+	if _, err = fmt.Scan(&genresStr); err != nil {
+		return fmt.Errorf("Failed to read genres: %w", err), poster, nil
+	}
+	if len(genresStr) == 0 {
+		return fmt.Errorf("Genres are empty"), poster, nil
+	}
+
+	genres = strings.Split(genresStr, ", ")
 	return
 }
 
-func formTabPath() (err error, tabs []string) {
-	var tabPath string
-	fmt.Println("Type tab path like 'tab1/tab2/.../lastTab':")
-	if fmt.Scan(&tabPath); len(tabPath) == 0 {
+func formTabPath(tabPath string) (err error, tabs []string) {
+	if len(tabPath) == 0 {
 		return fmt.Errorf("tabpath is empty"), nil
 	}
-	// check tabPath validity
-
 	if tabs = strings.Split(tabPath, "/"); len(tabs) == 0 {
 		return fmt.Errorf("Failed to split tabpath"), nil
 	}
 
 	tabs = append([]string{"root"}, tabs...)
-
 	return
 }
 
 // add poster by tab path
 func addPoster(db *sqlx.DB) (err error) {
-	err, tabs := formTabPath()
+	var tabPath string
+	fmt.Println("Type tab path like 'tab1/tab2/.../lastTab':")
+	fmt.Scan(&tabPath)
+	err, tabs := formTabPath(tabPath)
 	fmt.Println("tabs:", tabs)
 	if err != nil {
 		return err
 	}
 
 	err, pathIds := createTabPath(db, tabs)
-	fmt.Println("pathIds:", pathIds)
+	// fmt.Println("pathIds:", pathIds)
 	if err != nil {
-		return fmt.Errorf("Failed to create tabpath in db: %s", err.Error())
+		return fmt.Errorf("Failed to create tabpath in db: %w", err)
 	}
 
-	err, poster := formPoster()
+	err, poster, genres := readPoster()
 	if err != nil {
-		return fmt.Errorf("Failed to create poster: %s", err.Error())
+		return fmt.Errorf("Failed to create poster: %w", err)
 	}
 
 	err = createPosterInDB(db, poster, pathIds)
 	if err != nil {
-		return fmt.Errorf("Failed to create poster in db: %s", err.Error())
+		return fmt.Errorf("Failed to create poster in db: %w", err)
+	}
+
+	err = createGenresInDB(db, poster.Id, genres)
+	if err != nil {
+		return fmt.Errorf("Failed to create genres in db: %w", err)
 	}
 
 	return nil
@@ -217,7 +242,6 @@ func main() {
 
 	// handler.InitRoutes()
 
-	// db.Ping()
 	if err = addPoster(db); err != nil {
 		log.Fatalf("Failed to add poster: %s", err.Error())
 	}

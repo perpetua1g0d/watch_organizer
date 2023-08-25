@@ -6,7 +6,7 @@ create table if not exists Poster (
     Rating real,
     Name varchar,
     Year int,
-    CreatedAt timestamp default current_timestamp not null
+    CreatedAt timestamp default current_timestamp (now() at time zone 'utc-3') not null
 );
 
 create table if not exists PosterGenre (
