@@ -9,6 +9,7 @@ type Poster struct {
 	Name      string    `db:"name"`
 	Year      int       `db:"year"`
 	CreatedAt time.Time `db:"createdat"`
+	Genres    []string
 }
 
 type PosterGenre struct {
@@ -16,23 +17,6 @@ type PosterGenre struct {
 	Genre string
 }
 
-type Tab struct {
-	Id   int
-	Name string
-}
-
-type TabChildren struct {
-	Id1 int
-	Id2 int
-}
-
-type TabQueue struct {
-	TabId    int
-	PosterId int
-	Position int
-}
-
-type TabPoster struct {
-	TabId    int
-	PosterId int
+type PosterInput struct {
+	
 }

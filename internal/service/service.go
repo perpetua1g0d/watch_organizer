@@ -1,11 +1,28 @@
 package service
 
-import "github.com/perpetua1g0d/watch_organizer/internal/repository"
+import (
+	"github.com/perpetua1g0d/watch_organizer/internal/model"
+	"github.com/perpetua1g0d/watch_organizer/internal/repository"
+)
 
-type Service struct {
-	
+type Poster interface {
+	Create(poster model.Poster) (err error)
 }
 
-func NewService(repos *repository.Repository) *Service {
-	return &Service{}
+type Tab interface {
+	CreateTabPath(tabs []string) error
+	GetTabIds(tabs []string) (err error, path []int)
+	AddPosterToQueues(posterId int, path []int) (err error)
+}
+
+type Service struct {
+	Poster
+	Tab
+}
+
+func NewService(repo *repository.Repository) *Service {
+	return &Service{
+		Poster: NewPosterService(repo.Poster),
+		Tab:    NewTabService(repo.Tab),
+	}
 }
