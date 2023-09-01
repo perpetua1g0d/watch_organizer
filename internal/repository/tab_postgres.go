@@ -15,6 +15,22 @@ func NewTabPostgres(db *sqlx.DB) *TabPostgres {
 	return &TabPostgres{db: db}
 }
 
+func createTab(db *sqlx.DB, prevTabId int, tabName string) (err error, tabId int) {
+	err = db.QueryRowx(fmt.Sprintf("insert into tab values (default, '%s') returning id;", tabName)).
+		Scan(&tabId)
+	if err != nil {
+		err = fmt.Errorf("Failed to insert %s tab: %w", tabName, err)
+		return
+	}
+
+	err = db.QueryRowx(fmt.Sprintf("insert into tabchildren (%d, %d);", prevTabId, tabId)).Err()
+	if err != nil {
+		err = fmt.Errorf("Failed to insert into tabchildren (%d, %d): %w", prevTabId, tabId, err)
+	}
+
+	return
+}
+
 func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -22,7 +38,7 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 	}
 
 	ids := make([]int, len(tabs))
-	var lastTabId int
+	var prevTabId int
 	for i, tabName := range tabs {
 		var tabId int
 		err = r.db.QueryRowx(fmt.Sprintf("select id from tab where name='%s';", tabName)).Scan(&tabId)
@@ -38,23 +54,15 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 				return fmt.Errorf("No root tab in db")
 			}
 
-			err = r.db.QueryRowx(fmt.Sprintf("insert into tab values (default, '%s') returning id;", tabName)).
-				Scan(&curTabId)
-			if err != nil {
+			if err, curTabId = createTab(r.db, prevTabId, tabName); err != nil {
 				tx.Rollback()
-				return fmt.Errorf("Failed to insert %s tab: %w", tabName, err)
-			}
-
-			err = r.db.QueryRowx(fmt.Sprintf("insert into tabchildren (%d, %d);", lastTabId, curTabId)).Err()
-			if err != nil {
-				tx.Rollback()
-				return fmt.Errorf("Failed to insert into tabchildren (%d, %d): %w", lastTabId, curTabId, err)
+				return err
 			}
 		} else {
 			curTabId = tabId
 		}
 
-		lastTabId = curTabId
+		prevTabId = curTabId
 		ids[i] = curTabId
 	}
 

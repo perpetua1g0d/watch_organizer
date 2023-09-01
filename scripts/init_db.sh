@@ -5,3 +5,5 @@
 #     CREATE USER new_user_name WITH ENCRYPTED PASSWORD 'new_password';
 #     GRANT ALL PRIVILEGES ON DATABASE new_user_name TO database_name;
 # EOSQL
+
+# https://github.com/docker-library/docs/tree/master/postgres#initialization-scripts
