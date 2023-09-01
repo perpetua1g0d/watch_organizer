@@ -89,6 +89,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to init DB: %s", err.Error())
 	}
+	defer db.Close()
 
 	repo := repository.NewRepository(db)
 	service := service.NewService(repo)

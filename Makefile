@@ -6,3 +6,5 @@ killdb:
 	docker-compose -f docker-compose.yml down --volumes
 runapp:
 	go run cmd/main.go
+testdb:
+	go test ./internal/repository

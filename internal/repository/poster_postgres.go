@@ -22,7 +22,7 @@ func createGenresInDB(db *sqlx.DB, poster model.Poster) (err error) {
 	}
 
 	for _, genre := range poster.Genres {
-		err = db.QueryRowx(fmt.Sprintf("insert into postergenre values (%d, %s);", poster.Id, genre)).Err()
+		err = db.QueryRowx("insert into postergenre values (?, ?);", poster.Id, genre).Err()
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to insert genre %s: %w", genre, err)
@@ -55,7 +55,7 @@ func (r *PosterPostgres) Create(poster model.Poster) (err error) {
 	}
 
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("Failed to commit poster tx: %w", err)
+		err = fmt.Errorf("Failed to commit poster tx: %w", err)
 	}
 	return
 }
