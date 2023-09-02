@@ -29,6 +29,13 @@ func createGenresInDB(db *sqlx.DB, poster model.Poster) (err error) {
 		}
 	}
 
+	if len(poster.Genres) == 0 {
+		if err = tx.Rollback(); err != nil {
+			err = fmt.Errorf("Failed to rollback poster with no genres: %w", err)
+		}
+		return err
+	}
+
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("Failed to commit genres tx: %w", err)
 	}
@@ -42,8 +49,8 @@ func (r *PosterPostgres) Create(poster model.Poster) (err error) {
 	}
 
 	var posterId int
-	err = r.db.QueryRowx(fmt.Sprintf("insert into poster values(default, '%s', %f, '%s', %d) returning id;",
-		poster.KpLink, poster.Rating, poster.Name, poster.Year)).Scan(&posterId)
+	err = r.db.QueryRowx("insert into poster values(default, ?, ?, ?, ?) returning id;",
+		poster.KpLink, poster.Rating, poster.Name, poster.Year).Scan(&posterId)
 	if err != nil {
 		tx.Rollback()
 		return fmt.Errorf("Failed to insert poster %+v: %w", poster, err)

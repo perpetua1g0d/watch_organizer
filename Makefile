@@ -7,4 +7,4 @@ killdb:
 runapp:
 	go run cmd/main.go
 testdb:
-	go test ./internal/repository
+	go test ./internal/repository -cover

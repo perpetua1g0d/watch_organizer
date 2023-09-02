@@ -16,14 +16,13 @@ func NewTabPostgres(db *sqlx.DB) *TabPostgres {
 }
 
 func createTab(db *sqlx.DB, prevTabId int, tabName string) (err error, tabId int) {
-	err = db.QueryRowx(fmt.Sprintf("insert into tab values (default, '%s') returning id;", tabName)).
-		Scan(&tabId)
+	err = db.QueryRowx("insert into tab values (default, ?) returning id;", tabName).Scan(&tabId)
 	if err != nil {
 		err = fmt.Errorf("Failed to insert %s tab: %w", tabName, err)
 		return
 	}
 
-	err = db.QueryRowx(fmt.Sprintf("insert into tabchildren (%d, %d);", prevTabId, tabId)).Err()
+	err = db.QueryRowx("insert into tabchildren (?, ?);", prevTabId, tabId).Err()
 	if err != nil {
 		err = fmt.Errorf("Failed to insert into tabchildren (%d, %d): %w", prevTabId, tabId, err)
 	}
@@ -41,7 +40,7 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 	var prevTabId int
 	for i, tabName := range tabs {
 		var tabId int
-		err = r.db.QueryRowx(fmt.Sprintf("select id from tab where name='%s';", tabName)).Scan(&tabId)
+		err = r.db.QueryRowx("select id from tab where name=?;", tabName).Scan(&tabId)
 		if err != sql.ErrNoRows && err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to check for %s tab in db: %w", tabName, err)
@@ -81,7 +80,7 @@ func (r *TabPostgres) GetTabIds(tabs []string) (err error, path []int) {
 	path = make([]int, len(tabs))
 	for i, tabName := range tabs {
 		var tabId int
-		err = r.db.QueryRowx(fmt.Sprintf("select id from tab where name='%s';", tabName)).Scan(&tabId)
+		err = r.db.QueryRowx("select id from tab where name='?';", tabName).Scan(&tabId)
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to get %s tab from db: %w", tabName, err), nil
@@ -104,14 +103,13 @@ func (r *TabPostgres) AddPosterToQueues(posterId int, path []int) (err error) {
 
 	for _, tabId := range path {
 		var postersCount int
-		err = r.db.QueryRowx(fmt.Sprintf("select count(*) from tabqueue where tabid=%d;", tabId)).Scan(&postersCount)
+		err = r.db.QueryRowx("select count(*) from tabqueue where tabid=?;", tabId).Scan(&postersCount)
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to count new post for %d tab: %w", tabId, err)
 		}
 
-		err = r.db.QueryRowx(fmt.Sprintf("insert into tabqueue values (%d, %d, %d);", tabId, posterId, postersCount+1)).
-			Err()
+		err = r.db.QueryRowx("insert into tabqueue values (%d, %d, %d);", tabId, posterId, postersCount+1).Err()
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to insert position into tabqueue values(%d, %d, %d): %w",

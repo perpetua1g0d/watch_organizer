@@ -20,45 +20,83 @@ func TestPosterPostgres_CreateGenresInDB(t *testing.T) {
 	type args struct {
 		poster model.Poster
 	}
-	testPosters := []model.Poster {
+	testPosters := []model.Poster{
 		{
-			Id: 1,
+			Id:     1,
 			KpLink: "https://test0.com",
 			Rating: 8.1,
-			Name: "test0 and some spaces",
-			Year: 1913,
+			Name:   "test0 and some spaces",
+			Year:   1913,
 			Genres: []string{"genre1", "genre 2", "genre3"},
 		},
 		{
-			Id: 2,
+			Id:     2,
 			KpLink: "https://test1.ru",
 			Rating: 1.1,
-			Name: "test1",
-			Year: 1966,
-			Genres: []string{"genre the only one"},
+			Name:   "test1: no genres",
+			Year:   1966,
+			Genres: []string{},
 		},
+		{
+			Id:     3,
+			KpLink: "https://test2.",
+			Rating: 5.1,
+			Name:   "test2: nil genres",
+			Year:   1966,
+		},
+		{},
 	}
 	tests := []struct {
-		name string
+		name       string
 		funcToTest func()
-		input args
-		wantErr bool
-	} {
+		input      args
+		wantErr    bool
+	}{
 		{
-			name: "Ok",
+			name: "pos: simple",
 			funcToTest: func() {
 				mock.ExpectBegin()
-				
+
 				idRows := sqlmock.NewRows([]string{"id"}).AddRow(1)
 				for _, genre := range testPosters[0].Genres {
 					mock.ExpectQuery("insert into postergenre").WithArgs(testPosters[0].Id, genre).
 						WillReturnRows(idRows)
 				}
-				
+
 				mock.ExpectCommit()
 			},
 			input: args{
 				poster: testPosters[0],
+			},
+		},
+		{
+			name: "pos: no genres",
+			funcToTest: func() {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
+			input: args{
+				poster: testPosters[1],
+			},
+		},
+		{
+			name: "pos: nil genres",
+			funcToTest: func() {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
+			input: args{
+				poster: testPosters[2],
+			},
+		},
+		{
+			name: "pos: nil poster",
+			funcToTest: func() {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
+			input: args{
+				poster: testPosters[3],
 			},
 		},
 	}
