@@ -17,9 +17,6 @@ func TestPosterPostgres_CreateGenresInDB(t *testing.T) {
 	defer mockDB.Close()
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 
-	type args struct {
-		poster model.Poster
-	}
 	testPosters := []model.Poster{
 		{
 			Id:     1,
@@ -47,17 +44,16 @@ func TestPosterPostgres_CreateGenresInDB(t *testing.T) {
 		{},
 	}
 	tests := []struct {
-		name       string
-		funcToTest func()
-		input      args
-		wantErr    bool
+		name    string
+		runMock func()
+		wantErr bool
 	}{
 		{
 			name: "pos: simple",
-			funcToTest: func() {
+			runMock: func() {
 				mock.ExpectBegin()
 
-				idRows := sqlmock.NewRows([]string{"id"}).AddRow(1)
+				idRows := sqlmock.NewRows([]string{"id"})
 				for _, genre := range testPosters[0].Genres {
 					mock.ExpectQuery("insert into postergenre").WithArgs(testPosters[0].Id, genre).
 						WillReturnRows(idRows)
@@ -65,47 +61,97 @@ func TestPosterPostgres_CreateGenresInDB(t *testing.T) {
 
 				mock.ExpectCommit()
 			},
-			input: args{
-				poster: testPosters[0],
-			},
 		},
 		{
 			name: "pos: no genres",
-			funcToTest: func() {
+			runMock: func() {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
-			},
-			input: args{
-				poster: testPosters[1],
 			},
 		},
 		{
 			name: "pos: nil genres",
-			funcToTest: func() {
+			runMock: func() {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
-			},
-			input: args{
-				poster: testPosters[2],
 			},
 		},
 		{
 			name: "pos: nil poster",
-			funcToTest: func() {
+			runMock: func() {
 				mock.ExpectBegin()
 				mock.ExpectRollback()
-			},
-			input: args{
-				poster: testPosters[3],
 			},
 		},
 	}
 
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.funcToTest()
+			tt.runMock()
 
 			err := createGenresInDB(sqlxDB, testPosters[i])
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestPosterPostgres_Create(t *testing.T) {
+	mockDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create new sqlmock db: %s", err.Error())
+	}
+	defer mockDB.Close()
+	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
+	repo := NewRepository(sqlxDB)
+
+	testPosters := []model.Poster{
+		{
+			Id:     1,
+			KpLink: "https://test0.com",
+			Rating: 8.1,
+			Name:   "test0 and some spaces",
+			Year:   1913,
+			Genres: []string{"genre1", "genre 2", "genre3"},
+		},
+	}
+	tests := []struct {
+		name    string
+		runMock func()
+		wantErr bool
+	}{
+		{
+			name: "pos: simple",
+			runMock: func() {
+				mock.ExpectBegin()
+				resId := sqlmock.NewRows([]string{"id"}).AddRow(1)
+				mock.ExpectQuery("insert into poster").
+					WithArgs(testPosters[0].KpLink, testPosters[0].Rating, testPosters[0].Name, testPosters[0].Year).
+					WillReturnRows(resId)
+
+				mock.ExpectBegin()
+				for _, genre := range testPosters[0].Genres {
+					mock.ExpectQuery("insert into postergenre").WithArgs(testPosters[0].Id, genre).
+						WillReturnRows(resId)
+				}
+				mock.ExpectCommit()
+
+				mock.ExpectCommit()
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.runMock()
+
+			err := repo.Create(testPosters[i])
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

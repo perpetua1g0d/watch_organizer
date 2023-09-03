@@ -36,7 +36,6 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 		return fmt.Errorf("Failed to begin tabpath tx: %w", err)
 	}
 
-	ids := make([]int, len(tabs))
 	var prevTabId int
 	for i, tabName := range tabs {
 		var tabId int
@@ -47,7 +46,7 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 		}
 
 		var curTabId int
-		if err == sql.ErrNoRows {
+		if err == sql.ErrNoRows || (i == 0 && tabs[0] != "root") {
 			if i == 0 {
 				tx.Rollback()
 				return fmt.Errorf("No root tab in db")
@@ -62,7 +61,6 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 		}
 
 		prevTabId = curTabId
-		ids[i] = curTabId
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -109,7 +107,7 @@ func (r *TabPostgres) AddPosterToQueues(posterId int, path []int) (err error) {
 			return fmt.Errorf("Failed to count new post for %d tab: %w", tabId, err)
 		}
 
-		err = r.db.QueryRowx("insert into tabqueue values (%d, %d, %d);", tabId, posterId, postersCount+1).Err()
+		err = r.db.QueryRowx("insert into tabqueue values (?, ?, ?);", tabId, posterId, postersCount+1).Err()
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to insert position into tabqueue values(%d, %d, %d): %w",

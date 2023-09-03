@@ -7,12 +7,9 @@ import (
 )
 
 func (h *Handler) CreatePoster(tabPath string, poster model.Poster) {
-	err, tabs := ParseTabPath(tabPath)
-	if err != nil {
-		log.Fatalf("Failed to parse tabPath: %s", err.Error())
-	}
+	tabs := ParseTabPath(tabPath)
 
-	err = h.service.Tab.CreateTabPath(tabs)
+	err := h.service.Tab.CreateTabPath(tabs)
 	if err != nil {
 		log.Fatalf("Failed to create tabpath: %s", err.Error())
 	}
