@@ -19,12 +19,7 @@ func (h *Handler) CreatePoster(tabPath string, poster model.Poster) {
 		log.Fatalf("Failed to create poster: %s", err.Error())
 	}
 
-	err, path := h.service.Tab.GetTabIds(tabs)
-	if err != nil {
-		log.Fatalf("Failed to get tab ids: %s", err.Error())
-	}
-
-	err = h.service.Tab.AddPosterToQueues(poster.Id, path)
+	err = h.service.Tab.AddPosterToQueues(poster.Id, tabs)
 	if err != nil {
 		log.Fatalf("Failed to add poster to queues: %s", err.Error())
 	}

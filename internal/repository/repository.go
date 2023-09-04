@@ -11,8 +11,7 @@ type Poster interface {
 
 type Tab interface {
 	CreateTabPath(tabs []string) (err error)
-	GetTabIds(tabs []string) (err error, path []int)
-	AddPosterToQueues(posterId int, path []int) (err error)
+	AddPosterToQueues(posterId int, tabs []string) (err error)
 }
 
 type Repository struct {

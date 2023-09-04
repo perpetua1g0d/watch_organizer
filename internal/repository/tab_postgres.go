@@ -69,8 +69,8 @@ func (r *TabPostgres) CreateTabPath(tabs []string) (err error) {
 	return
 }
 
-func (r *TabPostgres) GetTabIds(tabs []string) (err error, path []int) {
-	tx, err := r.db.Begin()
+func getTabIds(db *sqlx.DB, tabs []string) (err error, path []int) {
+	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("Failed to begin GetTabIds tx: %w", err), nil
 	}
@@ -78,7 +78,7 @@ func (r *TabPostgres) GetTabIds(tabs []string) (err error, path []int) {
 	path = make([]int, len(tabs))
 	for i, tabName := range tabs {
 		var tabId int
-		err = r.db.QueryRowx("select id from tab where name='?';", tabName).Scan(&tabId)
+		err = db.QueryRowx("select id from tab where name='?';", tabName).Scan(&tabId)
 		if err != nil {
 			tx.Rollback()
 			return fmt.Errorf("Failed to get %s tab from db: %w", tabName, err), nil
@@ -93,10 +93,15 @@ func (r *TabPostgres) GetTabIds(tabs []string) (err error, path []int) {
 	return
 }
 
-func (r *TabPostgres) AddPosterToQueues(posterId int, path []int) (err error) {
+func (r *TabPostgres) AddPosterToQueues(posterId int, tabs []string) (err error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return fmt.Errorf("Failed to begin poster_tabpath tx: %w", err)
+	}
+
+	err, path := getTabIds(r.db, tabs)
+	if err != nil {
+		return fmt.Errorf("Failed to get path using tabs: %w", err)
 	}
 
 	for _, tabId := range path {

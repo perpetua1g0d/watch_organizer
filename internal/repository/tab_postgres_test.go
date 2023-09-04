@@ -214,8 +214,6 @@ func TestTabPostgres_GetTabIds(t *testing.T) {
 	defer mockDB.Close()
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 
-	repo := NewRepository(sqlxDB)
-
 	input := []struct {
 		tabs []string
 	}{
@@ -281,7 +279,7 @@ func TestTabPostgres_GetTabIds(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.runMock()
 
-			err, path := repo.GetTabIds(input[i].tabs)
+			err, path := getTabIds(sqlxDB, input[i].tabs)
 			if tt.isNeg {
 				assert.Error(t, err)
 			} else {
@@ -305,15 +303,15 @@ func TestTabPostgres_AddPosterToQueues(t *testing.T) {
 
 	input := []struct {
 		posterId int
-		path     []int
+		tabs     []string
 	}{
 		{
 			posterId: 1,
-			path:     []int{1, 2, 3},
+			tabs: []string{"root", "tab1", "tab2"},
 		},
 		{
 			posterId: 5,
-			path: []int{1, 7},
+			tabs: []string{"root", "tab7"},
 		},
 	}
 
@@ -326,6 +324,20 @@ func TestTabPostgres_AddPosterToQueues(t *testing.T) {
 			name: "pos simple",
 			runMock: func() {
 				mock.ExpectBegin()
+
+				mock.ExpectBegin()
+				mock.ExpectQuery("select (.+) from tab where (.+)").
+					WithArgs("root").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+				mock.ExpectQuery("select (.+) from tab where (.+)").
+					WithArgs("tab1").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+
+				mock.ExpectQuery("select (.+) from tab where (.+)").
+					WithArgs("tab2").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(3))
+				mock.ExpectCommit()
 
 				mock.ExpectQuery("select (.+) from tabqueue where (.+)").
 					WithArgs(1).
@@ -356,6 +368,16 @@ func TestTabPostgres_AddPosterToQueues(t *testing.T) {
 			runMock: func() {
 				mock.ExpectBegin()
 
+				mock.ExpectBegin()
+				mock.ExpectQuery("select (.+) from tab where (.+)").
+					WithArgs("root").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+				mock.ExpectQuery("select (.+) from tab where (.+)").
+					WithArgs("tab7").
+					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
+				mock.ExpectCommit()
+
 				mock.ExpectQuery("select (.+) from tabqueue where (.+)").
 					WithArgs(1).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
@@ -377,7 +399,7 @@ func TestTabPostgres_AddPosterToQueues(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.runMock()
 
-			err := repo.AddPosterToQueues(input[i].posterId, input[i].path)
+			err := repo.AddPosterToQueues(input[i].posterId, input[i].tabs)
 			if tt.isNeg {
 				assert.Error(t, err)
 			} else {

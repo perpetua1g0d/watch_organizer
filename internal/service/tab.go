@@ -13,9 +13,6 @@ func NewTabService(repo repository.Tab) *TabService {
 func (s *TabService) CreateTabPath(tabs []string) error {
 	return s.repo.CreateTabPath(tabs)
 }
-func (s *TabService) GetTabIds(tabs []string) (err error, path []int) {
-	return s.repo.GetTabIds(tabs)
-}
-func (s *TabService) AddPosterToQueues(posterId int, path []int) (err error) {
-	return s.repo.AddPosterToQueues(posterId, path)
+func (s *TabService) AddPosterToQueues(posterId int, tabs []string) (err error) {
+	return s.repo.AddPosterToQueues(posterId, tabs)
 }
